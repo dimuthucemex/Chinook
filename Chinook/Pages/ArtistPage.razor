@@ -10,20 +10,6 @@
 @using Chinook.Services.UserPlayListService;
 @using Chinook.Services.PlayListService;
 
-<style>
-    .bi{
-
-    }
-    .bi-star-filled{
-        color: #ffd250;
-        background-color: #ffd250;
-    }
-    .bi-star{
-        color: #ccc;
-        background-color: #ffd250;
-    }
-</style>
-
 @if (!string.IsNullOrWhiteSpace(InfoMessage))
 {
     <div class="alert alert-info fade show">
@@ -60,7 +46,8 @@ else
                     <td>
                         @if (track.IsFavorite)
                         {
-                            <a href="#" class="m-1" title="Unmark as favorite" @onclick="@(() => UnfavoriteTrack(track.TrackId))" @onclick:preventDefault><i class="bi bi-star-filled"></i></a>
+                            <a href="#" class="m-1" title="Unmark as favorite" @onclick="@(() => UnfavoriteTrack(track.TrackId))" @onclick:preventDefault><i class="bi bi-star-fill"></i></a>
+
                         }
                         else
                         {
@@ -86,21 +73,24 @@ else
 
         <div class="mb-2">
             <label for="ExistingPlaylist">Add to existing playlist</label>
-            <select class="form-control" id="ExistingPlaylist">
-                <option>Playlist 1</option>
-                <option>Playlist 2</option>
-                <option>Playlist 3</option>
+            <select class="form-control" id="ExistingPlaylist" @onchange="HandleSelection">
+                @foreach (var playList in UserPlayLists)
+                {
+                    <option value="@playList.Playlist.PlaylistId">@playList.Playlist.Name</option>
+                }
             </select>
         </div>
         <div class="mb-2">
             <label for="NewPlaylist">Create new playlist</label>
-            <input type="text" id="NewPlaylist" class="form-control" placeholder="Name for the new playlist">
+            <input type="text" id="NewPlaylist" @bind="NewPlayListName" class="form-control" placeholder="Name for the new playlist">
         </div>
     </Body>
     <Footer>
         <button class="btn btn-success" @onclick="AddTrackToPlaylist">Save</button>
     </Footer>
 </Modal>
+
+
 
 @code {
     [Parameter] public long ArtistId { get; set; }
@@ -121,6 +111,9 @@ else
     private PlaylistTrack SelectedTrack;
     private string InfoMessage;
     private string CurrentUserId;
+    private long PlayListId;
+    private string NewPlayListName;
+    private IEnumerable<UserPlayList> UserPlayLists;
 
     protected override async Task OnInitializedAsync()
     {
@@ -128,22 +121,12 @@ else
         CurrentUserId = await GetUserId();
         var DbContext = await DbFactory.CreateDbContextAsync();
 
-
-        //Artist = DbContext.Artists.SingleOrDefault(a => a.ArtistId == ArtistId);
         Artist = await ArtistService.GetByIdAsync(ArtistId);
 
         Tracks = await TrackService.GetByArtistIdAsync(ArtistId, CurrentUserId);
 
-        // Tracks = DbContext.Tracks.Where(a => a.Album.ArtistId == ArtistId)
-        //     .Include(a => a.Album)
-        //     .Select(t => new PlaylistTrack()
-        //         {
-        //             AlbumTitle = (t.Album == null ? "-" : t.Album.Title),
-        //             TrackId = t.TrackId,
-        //             TrackName = t.Name,
-        //             IsFavorite = t.Playlists.Where(p => p.UserPlaylists.Any(up => up.UserId == CurrentUserId && up.Playlist.Name == "Favorites")).Any()
-        //         })
-        //     .ToList();
+        UserPlayLists = await UserPlaylistService.GetAllAsync(CurrentUserId);
+
     }
 
     private async Task<string> GetUserId()
@@ -160,24 +143,39 @@ else
         // If Track is not null then add to Favorites playlist
         if(track != null)
         {
-            track.IsFavorite = true; 
-            InfoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} added to playlist Favorites.";
-
+            track.IsFavorite = true;
             await AddToFavouriteAsync(trackId, CurrentUserId);
+            InfoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} added to playlist Favorites.";
         }
         else
         {
             InfoMessage = $"Track cannot be found.";
-        }        
+        }
     }
 
-    private void UnfavoriteTrack(long trackId)
+    private async void UnfavoriteTrack(long trackId)
     {
         var track = Tracks.FirstOrDefault(t => t.TrackId == trackId);
 
-        // TODO: remove track from Favorites playlist
+        // if track is not null, then remove from Favorites playlist
+        if (track != null)
+        {
+            track.IsFavorite = false;
+            await RemoveFromFavorites(trackId, CurrentUserId);
+            InfoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} removed from playlist Favorites.";
+        }
+        else
+        {
+            InfoMessage = $"Track cannot be found.";
+        }
 
-        InfoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} removed from playlist Favorites.";
+
+    }
+
+    //On dropdown value change update the selected value
+    void HandleSelection(ChangeEventArgs e)
+    {
+        PlayListId = e.Value != null ? Convert.ToInt64(e.Value): 0 ;
     }
 
     private void OpenPlaylistDialog(long trackId)
@@ -187,13 +185,44 @@ else
         PlaylistDialog.Open();
     }
 
-    private void AddTrackToPlaylist()
+    private async Task AddTrackToPlaylist()
     {
-        // TODO
+        try
+        {
+            var userPlayList = new UserPlaylist();
+            if (PlayListId == 0 && !string.IsNullOrEmpty(NewPlayListName ))
+            {
+                // Add New Playlist
+                var alreadyExists = await PlayListService.ExistsAsync(NewPlayListName, CurrentUserId);
+                if(!alreadyExists)
+                {
+                    var addedPlayList = await PlayListService.AddAsync(new Models.Playlist { Name = NewPlayListName });
+                    userPlayList = await UserPlaylistService.AddAsync(new UserPlaylist { PlaylistId = addedPlayList.PlaylistId, UserId = CurrentUserId });
+                    CloseInfoMessage();
+                    InfoMessage = $"Track {Artist.Name} - {SelectedTrack.AlbumTitle} - {SelectedTrack.TrackName} added to playlist {userPlayList.Playlist.Name}.";
+                }
+                else
+                {
+                    InfoMessage = $"{NewPlayListName} already exists";    
+                }
+            }
+            else
+            {
+                // Add to Existing Playlist
+                await TrackService.AddToPlayList(SelectedTrack.TrackId, PlayListId);
+                var playList = UserPlayLists.FirstOrDefault(f => f.PlaylistId == PlayListId).Playlist;
+                CloseInfoMessage();
+                InfoMessage = $"Track {Artist.Name} - {SelectedTrack.AlbumTitle} - {SelectedTrack.TrackName} added to playlist {playList.Name}.";
+            }
+            PlaylistDialog.Close();
 
-        CloseInfoMessage();
-        InfoMessage = $"Track {Artist.Name} - {SelectedTrack.AlbumTitle} - {SelectedTrack.TrackName} added to playlist {{playlist name}}.";
-        PlaylistDialog.Close();
+        }
+        catch(Exception e)
+        {
+            PlaylistDialog.Close();
+            InfoMessage = $"Operation failed. Please try again.";
+        }
+
     }
 
     private void CloseInfoMessage()
@@ -208,16 +237,34 @@ else
 
     private async Task AddToFavouriteAsync(long trackId, string currentUserId)
     {
-        var favouritePlayList = await PlayListService.GetByNameAsync("Favorites");
-        if(favouritePlayList == null)
+        try
         {
-            favouritePlayList = await PlayListService.AddAsync(new Models.Playlist
-                {
-                    Name = "Favorites"
-                }
-            );
+            var favouritePlayList = await PlayListService.GetByNameAsync("Favorites");
+            if (favouritePlayList == null)
+            {
+                favouritePlayList = await PlayListService.AddAsync(new Models.Playlist
+                    {
+                        Name = "Favorites"
+                    }
+                );
+            }
+            var userPlayList = new UserPlaylist { PlaylistId = favouritePlayList.PlaylistId, UserId = currentUserId };
+            await TrackService.AddToPlayList(trackId, userPlayList.PlaylistId);
+            await UserPlaylistService.AddAsync(userPlayList);
         }
-        var userPlayList = new UserPlaylist { PlaylistId = favouritePlayList.PlaylistId, UserId = currentUserId };
-        await UserPlaylistService.AddAsync(userPlayList);
+        catch(Exception e)
+        {
+            InfoMessage = $"Operation failed. Please try again.";
+        }
+    }
+
+    private async Task RemoveFromFavorites(long trackId, string currentUserId)
+    {
+        var favoritePlayList = await PlayListService.GetByNameAsync("Favorites");
+        if(favoritePlayList != null)
+        {
+            await UserPlaylistService.DeleteAsync(favoritePlayList.PlaylistId, currentUserId);
+        }
+
     }
 }

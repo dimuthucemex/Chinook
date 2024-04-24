@@ -10,5 +10,6 @@ namespace Chinook.Services.PlayListService
         Task<bool> UpdateAsync(Playlist artist);
         Task<bool> DeleteAsync(long id);
         Task<Playlist> GetByNameAsync(string name);
+        Task<bool>ExistsAsync(string name, string currentUserId);
     }
 }

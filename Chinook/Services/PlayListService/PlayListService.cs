@@ -25,6 +25,14 @@ namespace Chinook.Services.PlayListService
             return await context.SaveChangesAsync()>0;
         }
 
+        public async Task<bool> ExistsAsync(string name, string currentUserId)
+        {
+            using var context = new ChinookContext();   
+            return await context.UserPlaylists
+                .Include(i=>i.Playlist)
+                .AnyAsync(a => a.Playlist.Name == name && a.UserId == currentUserId);
+        }
+
         public async Task<IEnumerable<Models.Playlist>> GetAllAsync()
         {
             using var context = new ChinookContext();

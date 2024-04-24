@@ -218,7 +218,8 @@ public partial class ChinookContext : IdentityDbContext<ChinookUser>
         {
             entity.ToTable("Playlist");
 
-            entity.Property(e => e.PlaylistId).ValueGeneratedNever();
+            //entity.Property(e => e.PlaylistId).ValueGeneratedNever();
+            entity.Property(e => e.PlaylistId).ValueGeneratedOnAdd();
 
             entity.Property(e => e.Name).HasColumnType("NVARCHAR(120)");
 
@@ -283,6 +284,8 @@ public partial class ChinookContext : IdentityDbContext<ChinookUser>
             entity.HasOne(up => up.Playlist)
                 .WithMany(u => u.UserPlaylists)
                 .HasForeignKey(up => up.PlaylistId);
+            entity.Property(e => e.UserId).ValueGeneratedOnAdd();
+
         });
 
         OnModelCreatingPartial(modelBuilder);

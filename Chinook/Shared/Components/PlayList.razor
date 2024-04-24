@@ -1,0 +1,21 @@
+﻿@using Chinook.ClientModels
+@using Chinook.Migrations
+@using Chinook.Services.UserPlayListService
+<SectionOutlet Name = "MyPlayLists">
+    <ul>
+        @foreach (var playList in UserPlayLists)
+        {
+            <NavLink class="nav-link" href="@($"playlist/{playList.PlaylistId}")">
+                <i class="bi bi-music-note-list me-3" style="font-size: 1.25em"></i>@playList.Playlist.Name
+            </NavLink>
+        }
+    </ul>
+</SectionOutlet>
+
+@code {
+    [Inject] IUserPlayListService UserPlaylistService { get; set; }
+
+    private IEnumerable<UserPlayList> UserPlayLists;
+
+
+}
