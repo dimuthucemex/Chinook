@@ -96,18 +96,15 @@ else
     [Parameter] public long ArtistId { get; set; }
     [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; }
 
-    [Inject] IDbContextFactory<ChinookContext> DbFactory { get; set; }
-    [Inject] IArtistService ArtistService{ get; set; }
-    [Inject] ITrackService TrackService{ get; set; }
-    [Inject] IUserPlayListService UserPlaylistService{ get; set; }
-    [Inject] IPlayListService PlayListService{ get; set; }
+    @inject IArtistService ArtistService
+    @inject ITrackService TrackService
+    @inject IUserPlayListService UserPlaylistService
+    @inject IPlayListService PlayListService 
 
 
     private Modal PlaylistDialog { get; set; }
-
-    private Artist Artist;
+    private Artist Artist = new Artist();
     private IEnumerable<PlaylistTrack> Tracks;
-    private DbContext DbContext;
     private PlaylistTrack SelectedTrack;
     private string InfoMessage;
     private string CurrentUserId;
@@ -115,11 +112,11 @@ else
     private string NewPlayListName;
     private IEnumerable<UserPlayList> UserPlayLists;
 
+
     protected override async Task OnInitializedAsync()
     {
         await InvokeAsync(StateHasChanged);
         CurrentUserId = await GetUserId();
-        var DbContext = await DbFactory.CreateDbContextAsync();
 
         Artist = await ArtistService.GetByIdAsync(ArtistId);
 
@@ -129,6 +126,7 @@ else
 
     }
 
+
     private async Task<string> GetUserId()
     {
         var user = (await authenticationState).User;
@@ -136,9 +134,14 @@ else
         return userId;
     }
 
+    /// <summary>
+    /// Add track to the Favorites playlist
+    /// </summary>
+    /// <param name="trackId"></param>
+    /// <returns></returns>
     private async Task FavoriteTrack(long trackId)
     {
-        var track = Tracks.FirstOrDefault(t => t.TrackId == trackId);
+        var track = Tracks.SingleOrDefault(t => t.TrackId == trackId);
 
         // If Track is not null then add to Favorites playlist
         if(track != null)
@@ -153,6 +156,10 @@ else
         }
     }
 
+    /// <summary>
+    /// Remove track from the Favorites playlist
+    /// </summary>
+    /// <param name="trackId"></param>
     private async void UnfavoriteTrack(long trackId)
     {
         var track = Tracks.FirstOrDefault(t => t.TrackId == trackId);
@@ -172,12 +179,19 @@ else
 
     }
 
-    //On dropdown value change update the selected value
+    /// <summary>
+    /// On dropdown value change event, update the selected value
+    /// </summary>
+    /// <param name="e"></param>
     void HandleSelection(ChangeEventArgs e)
     {
         PlayListId = e.Value != null ? Convert.ToInt64(e.Value): 0 ;
     }
 
+    /// <summary>
+    /// Open the playlist dialog
+    /// </summary>
+    /// <param name="trackId"></param>
     private void OpenPlaylistDialog(long trackId)
     {
         CloseInfoMessage();
@@ -185,11 +199,14 @@ else
         PlaylistDialog.Open();
     }
 
+    /// <summary>
+    /// Add Track to Playlist
+    /// </summary>
+    /// <returns></returns>
     private async Task AddTrackToPlaylist()
     {
         try
         {
-            var userPlayList = new UserPlaylist();
             if (PlayListId == 0 && !string.IsNullOrEmpty(NewPlayListName ))
             {
                 // Add New Playlist
@@ -197,7 +214,7 @@ else
                 if(!alreadyExists)
                 {
                     var addedPlayList = await PlayListService.AddAsync(new Models.Playlist { Name = NewPlayListName });
-                    userPlayList = await UserPlaylistService.AddAsync(new UserPlaylist { PlaylistId = addedPlayList.PlaylistId, UserId = CurrentUserId });
+                    var userPlayList = await UserPlaylistService.AddAsync(new UserPlaylist { PlaylistId = addedPlayList.PlaylistId, UserId = CurrentUserId });
                     CloseInfoMessage();
                     InfoMessage = $"Track {Artist.Name} - {SelectedTrack.AlbumTitle} - {SelectedTrack.TrackName} added to playlist {userPlayList.Playlist.Name}.";
                 }
@@ -210,7 +227,8 @@ else
             {
                 // Add to Existing Playlist
                 await TrackService.AddToPlayList(SelectedTrack.TrackId, PlayListId);
-                var playList = UserPlayLists.FirstOrDefault(f => f.PlaylistId == PlayListId).Playlist;
+                var userPlayList = UserPlayLists.FirstOrDefault(f => f.PlaylistId == PlayListId);
+                var playList = userPlayList ?.Playlist;
                 CloseInfoMessage();
                 InfoMessage = $"Track {Artist.Name} - {SelectedTrack.AlbumTitle} - {SelectedTrack.TrackName} added to playlist {playList.Name}.";
             }
@@ -225,15 +243,15 @@ else
 
     }
 
+    /// <summary>
+    /// Close the info message
+    /// </summary>
     private void CloseInfoMessage()
     {
         InfoMessage = "";
     }
 
-    private string GetStarColor(bool isFavourite)
-    {
-        return isFavourite ? "#ffd250" : "#000000";
-    }
+
 
     private async Task AddToFavouriteAsync(long trackId, string currentUserId)
     {
