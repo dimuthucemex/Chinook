@@ -1,6 +1,7 @@
 using Chinook;
 using Chinook.Areas.Identity;
 using Chinook.Models;
+using Chinook.Services.Albums;
 using Chinook.Services.ArtistService;
 using Chinook.Services.PlayListService;
 using Chinook.Services.TrackService;
@@ -17,6 +18,7 @@ builder.Services.AddTransient<IArtistService, ArtistService>();
 builder.Services.AddTransient<IUserPlayListService, UserPlayListService>();
 builder.Services.AddTransient<ITrackService, TrackService>();
 builder.Services.AddTransient<IPlayListService, PlayListService>();
+builder.Services.AddTransient<IAlbumService, AlbumService>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

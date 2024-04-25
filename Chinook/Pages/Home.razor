@@ -2,6 +2,7 @@
 @attribute [Authorize]
 
 @using Chinook.Models
+@using Chinook.Services.Albums
 @using Chinook.Services.ArtistService
 @using Microsoft.EntityFrameworkCore
 
@@ -36,49 +37,35 @@ else
 }
 
 @code {
-    private IEnumerable<Artist> Artists = new List<Artist>();
-    [Inject] IDbContextFactory<ChinookContext> DbFactory { get; set; }
-    [Inject] IArtistService ArtistService { get; set; }
 
+    @inject IArtistService ArtistService
+    @inject IAlbumService AlbumService
+
+
+    private IEnumerable<Artist> Artists = new List<Artist>();
     private string searchQuery = string.Empty;
 
 
     protected override async Task OnInitializedAsync() {
         await InvokeAsync(StateHasChanged);
-        Artists = await GetArtists();
+        Artists = await ArtistService.GetAllAsync();
     }
 
-    public async Task<IEnumerable<Artist>> GetArtists()
-    {   
-        var dbContext = await DbFactory.CreateDbContextAsync();
-        var users = dbContext.Users.Include(a => a.UserPlaylists).ToList();
+    public async Task<IEnumerable<Artist>> GetArtists() => 
+        await ArtistService.GetAllAsync();
 
-        return await ArtistService.GetAllAsync();
-    }
+    public async Task<IEnumerable<Album>> GetAlbumsForArtist(int artistId) => 
+        await AlbumService.GetAlbumsForAtrtistAsync(artistId);
 
-    public async Task<List<Album>> GetAlbumsForArtist(int artistId)
-    {
-        var dbContext = await DbFactory.CreateDbContextAsync();
-        return dbContext.Albums.Where(a => a.ArtistId == artistId).ToList();
-    }
-
-    // public async Task<List<Track>> GetTracksForAlbum(int albumId)
-    // {
-    //     var dbContext = await DbFactory.CreateDbContextAsync();
-    //     return dbContext.Tracks.Where(a => a.AlbumId == albumId).ToList();
-    // }
-
-
-
-    private void Search()
+    private async Task Search()
     {
         if (string.IsNullOrEmpty(searchQuery))
         {
-            Artists = GetArtists().Result;
+            Artists = await GetArtists();
         }
         else
         {
-            Artists = Artists.Where(a => a.Name.ToLower().Contains(searchQuery.ToLower())).ToList();
+            Artists = Artists.Where(a => a.Name != null && a.Name.Contains(searchQuery,StringComparison.OrdinalIgnoreCase)).ToList();
         }
     }
 }
