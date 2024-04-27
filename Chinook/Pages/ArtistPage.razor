@@ -104,13 +104,13 @@ else
 
     private Modal PlaylistDialog { get; set; }
     private Artist Artist = new Artist();
-    private IEnumerable<PlaylistTrack> Tracks;
     private PlaylistTrack SelectedTrack;
+    private IEnumerable<PlaylistTrack> Tracks;
+    private IEnumerable<UserPlayList> UserPlayLists;
     private string InfoMessage;
     private string CurrentUserId;
     private long PlayListId;
     private string NewPlayListName;
-    private IEnumerable<UserPlayList> UserPlayLists;
 
 
     protected override async Task OnInitializedAsync()
