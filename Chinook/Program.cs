@@ -26,6 +26,7 @@ builder.Services.AddDefaultIdentity<ChinookUser>(options => options.SignIn.Requi
     .AddEntityFrameworkStores<ChinookContext>();
 
 builder.Services.AddRazorPages();
+builder.Services.AddRazorComponents();
 builder.Services.AddServerSideBlazor();
 
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<ChinookUser>>();
