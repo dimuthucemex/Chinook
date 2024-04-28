@@ -8,6 +8,6 @@ namespace Chinook.Services.UserPlayListService
         Task<UserPlaylist> AddAsync(UserPlaylist newUserPlaylist);
         Task<bool> DeleteAsync(long trackId, string currentUserId);
         Task<IEnumerable<ClientModels.UserPlayList>> GetAllAsync(string currentUserId);
-
+        void OnPlaylistsUpdated();
     }
 }

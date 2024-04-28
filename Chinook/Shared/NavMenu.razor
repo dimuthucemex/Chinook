@@ -1,10 +1,11 @@
 ﻿@using Chinook.Models
 @using Chinook.Services.UserPlayListService
+@using System.Security.Claims
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Chinook</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
+            <span class="navbar-toggler-icon">AA</span>
         </button>
     </div>
 </div>
@@ -16,43 +17,52 @@
                 <span class="oi oi-home" aria-hidden="true"></span>Home
             </NavLink>
         </div>
+        <div class="nav-item px-3">My Play Lists</div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="playlist" Match="NavLinkMatch.All">
-                <span class="bi bi-music-note-list me-3" ></span>My Play Lists
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <section name="MyPlayLists">
+            @foreach (var playlist in playlists)
+            {
 
-            </section>
+                <NavLink class="nav-link" id="@($"nav_link-{playlist.PlaylistId}")" href="@($"PlayList/{playlist.PlaylistId}")" Match="NavLinkMatch.All">
+                    <span class="bi bi-music-note-list me-3" aria-hidden="true"></span>@playlist.Playlist.Name
+                </NavLink>
+            }
         </div>
+
 
     </nav>
 </div>
 
 @code {
-    [Inject] IUserPlayListService UserPlaylistService { get; set; }
 
+    [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; }
 
-    private IEnumerable<Playlist> MyPlayLists;
+    @inject IUserPlayListService UserPlaylistService
+    private IEnumerable<ClientModels.UserPlayList> playlists;
+    private string CurrentUserId;
 
-    public NavMenu()
+    protected override async Task OnInitializedAsync()
     {
-
+        await InvokeAsync(StateHasChanged);
+        CurrentUserId = await GetUserId();
+        await UpdatePlaylists(CurrentUserId);
     }
 
-    public NavMenu(IEnumerable<Playlist> myPlayLists)
+    private async Task UpdatePlaylists(string currentUserId)
     {
-        //myPlayLists = Services.UserPlayListService.UserPlayListService.GetPlayLists();
-
+        playlists = await UserPlaylistService.GetAllAsync(currentUserId);
+        StateHasChanged();
     }
 
-    // 
+    private async Task<string> GetUserId()
+    {
+        var user = (await authenticationState).User;
+        var userId = user.FindFirst(u => u.Type.Contains(ClaimTypes.NameIdentifier))?.Value;
+        return userId;
+    }
 
     private bool collapseNavMenu = true;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
 
     private void ToggleNavMenu()
     {

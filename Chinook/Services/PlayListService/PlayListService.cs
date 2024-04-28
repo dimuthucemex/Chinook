@@ -33,17 +33,34 @@ namespace Chinook.Services.PlayListService
                 .AnyAsync(a => a.Playlist.Name == name && a.UserId == currentUserId);
         }
 
-        public async Task<IEnumerable<Models.Playlist>> GetAllAsync()
+        public async Task<IEnumerable<Playlist>> GetAllAsync()
         {
             using var context = new ChinookContext();
             return await context.Playlists.Include(p => p.Tracks).ToListAsync();
         }
 
-        public async Task<Playlist> GetByIdAsync(long id)
+        public async Task<ClientModels.Playlist> GetByIdAsync(long id, string currentUserId)
         {
             using var context = new ChinookContext();
-            return await context.Playlists.FindAsync(id);
-        }
+            return await context.Playlists
+                .Include(i=>i.Tracks)
+                .ThenInclude(i=>i.Album)
+                .ThenInclude(i=>i.Artist)
+                .Where(a => a.PlaylistId == id)
+                .Select(s => new ClientModels.Playlist
+                {
+                    Name = s.Name,
+                    PlaylistId = s.PlaylistId,
+                    Tracks = s.Tracks.Select(t => new ClientModels.PlaylistTrack
+                    {
+                        AlbumTitle = t.Album.Title,
+                        ArtistName = t.Album.Artist.Name,
+                        TrackId = t.TrackId,
+                        TrackName = t.Name,
+                        IsFavorite = t.Playlists.Where(p => p.UserPlaylists.Any(up => up.UserId == currentUserId && up.Playlist.Name == "Favorites")).Any()
+                    }).ToList()
+                }).FirstOrDefaultAsync();
+        }   
 
         public async Task<Playlist> GetByNameAsync(string name)
         {

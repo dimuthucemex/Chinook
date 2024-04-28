@@ -6,6 +6,9 @@ namespace Chinook.Services.UserPlayListService
 {
     public class UserPlayListService : DbContext, IUserPlayListService
     {
+        // Define an event that will be triggered when a playlist is added or modified
+        public event EventHandler PlaylistsUpdated;
+
         public async Task<UserPlaylist> AddAsync(UserPlaylist userPlayList)
         {
             using var context = new ChinookContext();
@@ -45,6 +48,11 @@ namespace Chinook.Services.UserPlayListService
                     UserId = s.UserId,
                     Playlist = s.Playlist
                 }).ToListAsync();
+        }
+
+        void IUserPlayListService.OnPlaylistsUpdated()
+        {
+            PlaylistsUpdated?.Invoke(this, EventArgs.Empty);
         }
     }
 }
