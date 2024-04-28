@@ -1,6 +1,7 @@
 ﻿@page "/artist/{ArtistId:long}"
 @attribute [Authorize]
 
+@using Chinook.Utility
 @using Microsoft.EntityFrameworkCore;
 @using System.Security.Claims;
 @using Chinook.Models;
@@ -113,7 +114,6 @@ else
     private long playListId;
     private string newPlayListName;
 
-    private const string favorites = "Favorites";
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,7 +152,7 @@ else
         {
             track.IsFavorite = true;
             await AddToFavouriteAsync(trackId, currentUserId);
-            infoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} added to playlist {favorites}.";
+            infoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} added to playlist {AppCommons.Favorites}.";
         }
         else
         {
@@ -173,14 +173,12 @@ else
         {
             track.IsFavorite = false;
             await RemoveFromFavorites(trackId, currentUserId);
-            infoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} removed from playlist {favorites}.";
+            infoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} removed from playlist {AppCommons.Favorites}.";
         }
         else
         {
             infoMessage = $"Track cannot be found.";
         }
-
-
     }
 
     /// <summary>
@@ -219,6 +217,7 @@ else
                 {
                     var addedPlayList = await PlayListService.AddAsync(new Models.Playlist { Name = newPlayListName });
                     var userPlayList = await UserPlaylistService.AddAsync(new UserPlaylist { PlaylistId = addedPlayList.PlaylistId, UserId = currentUserId });
+                    await TrackService.AddToPlayList(SelectedTrack.TrackId, addedPlayList.PlaylistId);
                     CloseInfoMessage();
                     infoMessage = $"Track {Artist.Name} - {SelectedTrack.AlbumTitle} - {SelectedTrack.TrackName} added to playlist {userPlayList.Playlist.Name}.";
                 }
@@ -264,12 +263,12 @@ else
     {
         try
         {
-            var favouritePlayList = await PlayListService.GetByNameAsync(favorites);
+            var favouritePlayList = await PlayListService.GetByNameAsync(AppCommons.Favorites);
             if (favouritePlayList == null)
             {
                 favouritePlayList = await PlayListService.AddAsync(new Models.Playlist
                     {
-                        Name = favorites
+                        Name = AppCommons.Favorites
                     }
                 );
             }
@@ -291,7 +290,7 @@ else
     /// <returns></returns>
     private async Task RemoveFromFavorites(long trackId, string currentUserId)
     {
-        var favoritePlayList = await PlayListService.GetByNameAsync(favorites);
+        var favoritePlayList = await PlayListService.GetByNameAsync(AppCommons.Favorites);
         if (favoritePlayList != null)
         {
             await UserPlaylistService.DeleteAsync(favoritePlayList.PlaylistId, currentUserId);

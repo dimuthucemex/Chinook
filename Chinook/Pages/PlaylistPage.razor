@@ -4,17 +4,19 @@
 @using Chinook.Models
 @using Chinook.Services.PlayListService
 @using Chinook.Services.TrackService
+@using Chinook.Services.UserPlayListService
+@using Chinook.Utility
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims;
 
 <h1>Playlist <strong>@Playlist.Name</strong></h1>
 
-@if (!string.IsNullOrWhiteSpace(InfoMessage))
+@if (!string.IsNullOrWhiteSpace(infoMessage))
 {
     <div class="alert alert-info fade show">
         <div class="d-flex align-items-start">
             <div class="flex-grow-1">
-                @InfoMessage
+                @infoMessage
             </div>
             <button type="button" class="btn-close" aria-label="Close" @onclick="CloseInfoMessage"></button>
         </div>
@@ -68,17 +70,18 @@ else
 
     @inject IPlayListService PlayListService;
     @inject ITrackService TrackService;
+    @inject IUserPlayListService UserPlaylistService;
 
-    private Chinook.ClientModels.Playlist Playlist;
-    private string CurrentUserId;
-    private string InfoMessage;
+    private Chinook.ClientModels.Playlist Playlist { get; set; }
+    private string currentUserId = string.Empty;
+    private string infoMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        CurrentUserId = await GetUserId();
+        currentUserId = await GetUserId();
 
         await InvokeAsync(StateHasChanged);
-        Playlist = await PlayListService.GetByIdAsync(PlaylistId,CurrentUserId);
+        Playlist = await PlayListService.GetByIdAsync(PlaylistId,currentUserId);
         this.PlaylistId = Playlist.PlaylistId;
     }
 
@@ -88,7 +91,7 @@ else
         if (this.PlaylistId != Playlist.PlaylistId)
         {
             await Task.Delay(100);
-            Playlist = await PlayListService.GetByIdAsync(this.PlaylistId, CurrentUserId);
+            Playlist = await PlayListService.GetByIdAsync(this.PlaylistId, currentUserId);
 
         }
     }
@@ -100,33 +103,103 @@ else
         return userId;
     }
 
-    private void FavoriteTrack(long trackId)
+    private async Task FavoriteTrack(long trackId)
+    {
+        var track = Playlist.Tracks.SingleOrDefault(t => t.TrackId == trackId);
+
+        // If Track is not null then add to Favorites playlist
+        if (track != null)
+        {
+            track.IsFavorite = true;
+            await AddToFavouriteAsync(trackId, currentUserId);
+            infoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} added to playlist {AppCommons.Favorites}.";
+        }
+        else
+        {
+            infoMessage = $"Track cannot be found.";
+        }
+    }
+
+    private async Task UnfavoriteTrack(long trackId)
     {
         var track = Playlist.Tracks.FirstOrDefault(t => t.TrackId == trackId);
 
-        // TODO: add track to Favorites playlist
-
-        InfoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} added to playlist Favorites.";
+        // if track is not null, then remove from Favorites playlist
+        if (track != null)
+        {
+            track.IsFavorite = false;
+            await RemoveFromFavorites(trackId, currentUserId);
+            infoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} removed from playlist {AppCommons.Favorites}.";
+        }
+        else
+        {
+            infoMessage = $"Track cannot be found.";
+        }
     }
 
-    private void UnfavoriteTrack(long trackId)
+    /// <summary>
+    /// Add to Favorites Playlist
+    /// </summary>
+    /// <param name="trackId"></param>
+    /// <param name="currentUserId"></param>
+    /// <returns></returns>
+    private async Task AddToFavouriteAsync(long trackId, string currentUserId)
     {
-        var track = Playlist.Tracks.FirstOrDefault(t => t.TrackId == trackId);
-
-        // TODO: remove track from Favorites playlist
-
-        InfoMessage = $"Track {track.ArtistName} - {track.AlbumTitle} - {track.TrackName} removed from playlist Favorites.";
+        try
+        {
+            var favouritePlayList = await PlayListService.GetByNameAsync(AppCommons.Favorites);
+            if (favouritePlayList == null)
+            {
+                favouritePlayList = await PlayListService.AddAsync(new Models.Playlist
+                    {
+                        Name = AppCommons.Favorites
+                    }
+                );
+            }
+            var userPlayList = new UserPlaylist { PlaylistId = favouritePlayList.PlaylistId, UserId = currentUserId };
+            await TrackService.AddToPlayList(trackId, userPlayList.PlaylistId);
+            await UserPlaylistService.AddAsync(userPlayList);
+        }
+        catch (Exception e)
+        {
+            infoMessage = $"Operation failed. Please try again.";
+        }
     }
 
-    private void RemoveTrack(long trackId)
+    /// <summary>
+    /// Remove from Favorites Playlist
+    /// </summary>
+    /// <param name="trackId"></param>
+    /// <param name="currentUserId"></param>
+    /// <returns></returns>
+    private async Task RemoveFromFavorites(long trackId, string currentUserId)
     {
-        // TODO
-        CloseInfoMessage();
+        var favoritePlayList = await PlayListService.GetByNameAsync(AppCommons.Favorites);
+        if (favoritePlayList != null)
+        {
+            await UserPlaylistService.DeleteAsync(favoritePlayList.PlaylistId, currentUserId);
+        }
+    }
+
+    /// <summary>
+    /// Remove Track from Playlist
+    /// </summary>
+    /// <param name="trackId"></param>
+    /// <returns></returns>
+    private async Task RemoveTrack(long trackId)
+    {
+        var playListId = Playlist.PlaylistId;
+        var track = Playlist.Tracks.FirstOrDefault(f => f.TrackId == trackId);
+        await TrackService.RemoveFromPlayListAsync(trackId, playListId);
+        
+        infoMessage = $"Track {track?.ArtistName} - {track?.AlbumTitle} - {track?.TrackName} removed from playlist {AppCommons.Favorites}.";
+
+        Playlist = await PlayListService.GetByIdAsync(PlaylistId, currentUserId);
     }
 
     private void CloseInfoMessage()
     {
-        InfoMessage = "";
+        infoMessage = "";
     }
 
 }

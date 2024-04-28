@@ -7,6 +7,6 @@
         Task<bool> UpdateAsync(Models.Playlist artist);
         Task<bool> DeleteAsync(long id);
         Task<Models.Playlist> GetByNameAsync(string name);
-        Task<bool>ExistsAsync(string name, string currentUserId);
+        Task<bool> ExistsAsync(string name, string currentUserId);
     }
 }

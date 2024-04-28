@@ -1,5 +1,6 @@
 ﻿using Chinook.ClientModels;
 using Chinook.Models;
+using Chinook.Utility;
 using Microsoft.EntityFrameworkCore;
 
 namespace Chinook.Services.TrackService
@@ -47,24 +48,14 @@ namespace Chinook.Services.TrackService
                 AlbumTitle = (t.Album == null ? "-" : t.Album.Title),
                 TrackId = t.TrackId,
                 TrackName = t.Name,
-                IsFavorite = t.Playlists.Where(p => p.UserPlaylists.Any(up => up.UserId == currentUserId && up.Playlist.Name == "Favorites")).Any()
+                IsFavorite = t.Playlists.Where(p => p.UserPlaylists.Any(up => up.UserId == currentUserId && up.Playlist.Name == AppCommons.Favorites)).Any()
             }).ToList();
-            //.Select(t => new PlaylistTrack()
-            //{
-            //    AlbumTitle = (t.Album == null ? "-" : t.Album.Title),
-            //    TrackId = t.TrackId,
-            //    TrackName = t.Name,
-            //    IsFavorite = t.Playlists.Where(p => p.UserPlaylists.Any(up => up.UserId == currentUserId && up.Playlist.Name == "Favorites")).Any()
-            //})
-            //.ToListAsync();
-            //return result;
         }
 
         public async Task<Track> GetByIdAsync(long id)
         {
             using var context = new ChinookContext();
             return await context.Tracks.FindAsync(id);
-
         }
 
         public async Task<bool> UpdateAsync(Track artist)
@@ -94,6 +85,27 @@ namespace Chinook.Services.TrackService
                 return await context.SaveChangesAsync() > 0;
             }
 
+        }
+
+        public async Task<bool> RemoveFromPlayListAsync(long trackId, long playListId)
+        {
+            using var context = new ChinookContext();
+            var track = await context.Tracks.Include(i=>i.Playlists).FirstOrDefaultAsync(f=>f.TrackId == trackId);
+            var playList = await context.Playlists.Include(i=>i.Tracks).FirstOrDefaultAsync(f=>f.PlaylistId == playListId);
+            
+            if(track == null && playList == null)
+            {
+                return false;
+            }
+            else
+            {
+                if(!track.Playlists.Any(a=>a.PlaylistId == playListId))
+                {
+                    return false;
+                }
+                playList.Tracks.Remove(track);
+                return await context.SaveChangesAsync() > 0;
+            }
         }
 
     }

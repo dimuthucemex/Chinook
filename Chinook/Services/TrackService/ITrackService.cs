@@ -12,6 +12,7 @@ namespace Chinook.Services.TrackService
         Task<bool> DeleteAsync(long id);
         Task<IEnumerable<PlaylistTrack>> GetByArtistIdAsync(long aritstId , string currentUserId);
         Task<bool> AddToPlayList(long trackId, long playListId);
+        Task<bool> RemoveFromPlayListAsync(long trackId, long playListId);
 
     }
 }
